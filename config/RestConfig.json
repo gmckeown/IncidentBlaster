@@ -1,0 +1,7 @@
+{
+    "remedyApiUrl": "https://ars_server.example.com/api",
+    "remedyUser": "rest_user",
+    "remedyBase64Password": "cGFzc3dvcmQ=",
+    "remedyCreateForm": "HPD:IncidentInterface_Create",
+    "remedyModifyForm": "HPD:IncidentInterface"
+}

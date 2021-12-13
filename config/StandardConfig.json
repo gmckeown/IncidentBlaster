@@ -1,0 +1,51 @@
+{
+    "Impacts": [
+        "1-Extensive/Widespread",
+        "2-Significant/Large",
+        "3-Moderate/Limited",
+        "4-Minor/Localized"
+    ],
+    "Urgencies": [
+        "1-Critical",
+        "2-High",
+        "3-Medium",
+        "4-Low"
+    ],
+    "Statuses": [
+        "Assigned",
+        "In Progress",
+        "Pending"
+    ],
+    "Sources": [
+        "Direct Input",
+        "Email",
+        "External Escalation",
+        "Fax",
+        "Self Service",
+        "Systems Management",
+        "Phone",
+        "Voice Mail",
+        "Walk In",
+        "Web",
+        "Other",
+        "BMC Impact Manager Event"
+    ],
+    "PendingReasons": [
+        "Automated Resolution Reported",
+        "Client Action Required",
+        "Client Hold",
+        "Future Enhancement",
+        "Infrastructure Change",
+        "Local Site Action Required",
+        "Monitoring Incident",
+        "Purchase Order Approval",
+        "Registration Approval",
+        "Request",
+        "Supplier Delivery",
+        "Support Contact Hold",
+        "Third Party Vendor Action Reqd"
+    ],
+    "IncidentTypes": [
+        "User Service Restoration"
+    ]
+}

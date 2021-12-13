@@ -1,0 +1,54 @@
+{
+    "Calbro Services": {
+        "Assignees": {
+            "Service Desk": {
+                "Support Company": "Calbro Services",
+                "Support Organisation": "IT Support",
+                "Support Assignees": [
+                    "Allen Allbrook",
+                    "Bob Baxter",
+                    "Mary Mann"
+                ]
+            },
+            "Backoffice Support": {
+                "Support Company": "Calbro Services",
+                "Support Organisation": "IT Support",
+                "Support Assignees": [
+                    "Allen Allbrook",
+                    "Mary Mann"
+                ]
+            },
+            "Change Management": {
+                "Support Company": "Calbro Services",
+                "Support Organisation": "IT Support",
+                "Support Assignees": [
+                    "Change User"
+                ]
+            },
+            "Frontoffice Support": {
+                "Support Company": "Calbro Services",
+                "Support Organisation": "IT Support",
+                "Support Assignees": [
+                    "Allen Allbrook",
+                    "Mary Mann"
+                ]
+            }
+        },
+        "ContactLogonIDs": [
+            "Allen",
+            "Bob"
+        ],
+        "CIs": [
+            "Test"
+        ],
+        "Services": [
+            "Application Hosting",
+            "Billing Service",
+            "Database Service",
+            "Facilities",
+            "Network",
+            "Storage",
+            "Telecommunications"
+        ]
+    }
+}
