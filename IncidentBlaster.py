@@ -83,14 +83,15 @@ def main():
 
                 runtimeValues['nextIncidentNumber'] += 1
             except Exception as err:
-                logging.error("Error: " + str(err))
+                logging.error("Error: {}".format(err))
                 logging.error(traceback.format_exc())
                 errorCount += 1
 
         logoutFromRemedy(authToken)
         if (errorCount > 0):
+            errorText = "error" if errorCount == 1 else "errors"
             logging.info(
-                "**** Total of {} errors occurred during execution ****".format(errorCount))
+                "**** Total of {} {} occurred during execution ****".format(errorCount, errorText))
 
         # Save runtime Values to file
         with open(rvFile, 'w') as rv:
@@ -179,10 +180,10 @@ def loginToRemedy():
 
     remedyUser = restConfig.get('remedyUser')
     logging.info("Logging in to Remedy as {}".format(remedyUser))
-    logging.info("========================" + ("=" * len(remedyUser)))
+    logging.info("========================{}".format("=" * len(remedyUser)))
 
     authToken = ""
-    loginUrl = restConfig.get('remedyApiUrl') + "/jwt/login"
+    loginUrl = "".join((restConfig.get('remedyApiUrl'), "/jwt/login"))
     payload = urllib.urlencode(
         {"username": remedyUser, "password": restConfig.get('remedyPassword')})
 
@@ -190,7 +191,7 @@ def loginToRemedy():
     r.add_header('Content-Type', 'application/x-www-form-urlencoded')
     response = urllib2.urlopen(r)
     if (response.getcode() == 200):
-        authToken = "AR-JWT " + response.read()
+        authToken = "AR-JWT {}".format(response.read())
     return authToken
 
 
@@ -201,7 +202,7 @@ def logoutFromRemedy(authToken):
             authToken: Remedy AR-JWT authentication token
     '''
 
-    logoutUrl = restConfig.get('remedyApiUrl') + "/jwt/logout"
+    logoutUrl = "".join((restConfig.get('remedyApiUrl'), "/jwt/logout"))
     # Dummy payload required so that urllib2 performs a POST request (defaults to GET with no payload)
     dummyPayload = "x"
     r = urllib2.Request(logoutUrl, dummyPayload)
@@ -257,10 +258,10 @@ def getRemedyRequestId(authToken, incidentNumber):
     '''
 
     requestId = ""
-    remedyQuery = "('Incident Number'=\"" + incidentNumber + "\")"
+    remedyQuery = """('Incident Number'="{}")""".format(incidentNumber)
     parameters = {'q': remedyQuery}
-    targetUrl = restConfig.get('remedyApiUrl') + "/arsys/v1/entry/" + \
-        restConfig.get('remedyModifyForm') + "?" + urllib.urlencode(parameters)
+    targetUrl = "{}{}{}?{}".format(restConfig.get('remedyApiUrl'), "/arsys/v1/entry/",
+                                   restConfig.get('remedyModifyForm'), urllib.urlencode(parameters))
     logging.debug("Target URL: {}".format(targetUrl))
     r = urllib2.Request(targetUrl)
     r.add_header('Content-Type', 'application/json')
@@ -289,17 +290,17 @@ def modifyRemedyIncident(authToken, jsonBody, requestId):
 
     logging.debug("Going to modify incident ref: {}".format(requestId))
     logging.debug(jsonBody)
-    targetUrl = restConfig.get('remedyApiUrl') + "/arsys/v1/entry/" + \
-        restConfig.get('remedyModifyForm') + "/" + requestId
-    logging.debug("URL: " + targetUrl)
+    targetUrl = "{}{}{}/{}".format(restConfig.get('remedyApiUrl'), "/arsys/v1/entry/",
+                                   restConfig.get('remedyModifyForm'), requestId)
+    logging.debug("URL: {}".format(targetUrl))
     r = PutRequest(targetUrl, jsonBody, )
     r.add_header('Content-Type', 'application/json')
     r.add_header('Authorization', authToken)
     response = urllib2.urlopen(r)
     if (200 <= response.getcode() <= 299):
-        logging.debug("Incident modified: " + targetUrl)
+        logging.debug("Incident modified: {}".format(targetUrl))
     else:
-        logging.error("Error modifying incident: " + str(response.read()))
+        logging.error("Error modifying incident: {}".format(response.read()))
 
 
 def createRemedyIncident(authToken, jsonBody):
@@ -316,8 +317,8 @@ def createRemedyIncident(authToken, jsonBody):
 
     requestId = ""
     incidentNumber = ""
-    targetUrl = restConfig.get('remedyApiUrl') + \
-        "/arsys/v1/entry/" + restConfig.get('remedyCreateForm')
+    targetUrl = "{}{}{}".format(restConfig.get('remedyApiUrl'),
+                                "/arsys/v1/entry/", restConfig.get('remedyCreateForm'))
     r = urllib2.Request(targetUrl, jsonBody)
     r.add_header('Content-Type', 'application/json')
     r.add_header('Authorization', authToken)
@@ -325,11 +326,11 @@ def createRemedyIncident(authToken, jsonBody):
     if (response.getcode() == 201):
         headers = response.info()
         incidentUrl = headers.getheader("Location")
-        logging.debug("Incident created: " + incidentUrl)
+        logging.debug("Incident created: {}".format(incidentUrl))
         incidentNumber = getRemedyIncidentNumber(authToken, incidentUrl)
         requestId = getRemedyRequestId(authToken, incidentNumber)
     else:
-        logging.error("Error creating incident: " + response.info())
+        logging.error("Error creating incident: {}".format(response.info()))
 
     return incidentNumber, requestId
 
