@@ -9,6 +9,16 @@ This script uses the BMC Remedy REST API to generate a specified number of incid
 - ***StandardConfig.json*** contains the base data that is typically common across installations
 - ***CustomerConfig.json*** contains the foundation data that tends to be unique to an installation
 
+The password should be BASE64 encoded before placing into the REST Config file. There are many online services that can do this, or if you're a little more cautious you can use the following on Linux:
+```Bash
+echo -n "MyP@ssw0rd" | base64
+```
+
+On Windows you can use PowerShell:
+```PowerShell
+[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("MyP@ssw0rd"))
+```
+
 **NOTE:** To change the fields set on create, currently you'll need to edit the script.
 
 ***WARNING:*** You probably want to create one or two incidents at a time into a test environment initially!
