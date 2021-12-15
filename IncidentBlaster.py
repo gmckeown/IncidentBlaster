@@ -4,17 +4,17 @@
 # BE CAREFUL! Check configuration carefully before running this script; many incidents can be created in a short space of time!
 # Note: this uses the Urllib module rather than Requests so that it can work in environments with only the base set of Python modules.
 
-import json
-import random
-import datetime
-import urllib
-import urllib2
-import time
 import base64
-import traceback
-import sys
+import datetime
+import json
 import logging
 import os.path
+import random
+import sys
+import time
+import traceback
+import urllib
+import urllib2
 
 DEBUG_FLAG = False
 
@@ -51,9 +51,9 @@ def main():
         supplied configuration data (see config files)
     '''
 
-    errorCount = 0
     authToken = loginToRemedy()
     if authToken:
+        errorCount = 0
         for _ in range(runtimeValues.get('incidentsToCreate')):
             incidentRequest = createRandomIncident(
                 runtimeValues.get('nextIncidentNumber'))
@@ -181,7 +181,6 @@ def loginToRemedy():
     logging.info("Logging in to Remedy as {}".format(remedyUser))
     logging.info("========================" + ("=" * len(remedyUser)))
 
-    authToken = ""
     loginUrl = restConfig.get('remedyApiUrl') + "/jwt/login"
     payload = urllib.urlencode(
         {"username": remedyUser, "password": restConfig.get('remedyPassword')})
@@ -189,9 +188,8 @@ def loginToRemedy():
     r = urllib2.Request(loginUrl, payload)
     r.add_header('Content-Type', 'application/x-www-form-urlencoded')
     response = urllib2.urlopen(r)
-    if (response.getcode() == 200):
-        authToken = "AR-JWT " + response.read()
-    return authToken
+
+    return "AR-JWT {}".format(response.read()) if (response.getcode() == 200) else ""
 
 
 def logoutFromRemedy(authToken):
