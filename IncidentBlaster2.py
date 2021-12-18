@@ -2,7 +2,7 @@
 # Author: Gordon Mckeown - gordon.mckeown@gmail.com
 #
 # BE CAREFUL! Check configuration carefully before running this script; many incidents can be created in a short space of time!
-# Note: this uses the Urllib module rather than Requests so that it can work in environments with only the base set of Python modules.
+# Note: this version of the script is for Python 3 and uses additional libraries that may need to be installed
 
 import base64
 import datetime
@@ -16,7 +16,7 @@ import traceback
 import urllib
 import urllib2
 
-DEBUG_FLAG = False
+DEBUG_FLAG = True
 
 logLevel = logging.DEBUG if DEBUG_FLAG else logging.INFO
 logging.basicConfig(stream=sys.stdout, level=logLevel)

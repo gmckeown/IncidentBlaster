@@ -2,6 +2,11 @@
 
 This script uses the BMC Remedy REST API to generate a specified number of incidents. The field data is chosen randomly from values provided in the configuration files.
 
+## Versions
+There are two versions of the script:
+- *Python 2*: A version for Python 2 with no dependencies outside of the standard modules. This is the original version of the script and is intended for use in environments where Python 3 is unavailable and/or installing dependencies with pip is difficult.
+- *Python 3*: A more streamlined version of the script for Python 3 that requires the Requests module.
+
 ## Configuration
 
 - ***RestConfig.json*** contains the target URL and login details.
