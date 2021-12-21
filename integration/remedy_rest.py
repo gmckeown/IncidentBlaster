@@ -1,14 +1,15 @@
 import logging
 import requests
+from typing import Tuple
 
-remedyCreateForm = 'HPD:IncidentInterface_Create'
-remedyModifyForm = 'HPD:IncidentInterface'
-entryPath = '/arsys/v1/entry/'
-loginPath = '/jwt/login'
-logoutPath = '/jwt/logout'
+remedy_create_form = 'HPD:IncidentInterface_Create'
+remedy_modify_form = 'HPD:IncidentInterface'
+entry_path = '/arsys/v1/entry/'
+login_path = '/jwt/login'
+logout_path = '/jwt/logout'
 
 
-def loginToRemedy(url, username, password):
+def login_to_remedy(url: str, username: str, password: str) -> str:
     ''' Function to log in to Remedy and retrieve an authentication token
 
         Inputs
@@ -22,114 +23,119 @@ def loginToRemedy(url, username, password):
     logging.info(f"Logging in to Remedy as {username}")
     logging.info(f"========================{'=' * len(username)}")
 
-    loginUrl = f"{url}{loginPath}"
+    login_url = f"{url}{login_path}"
     payload = {"username": username, "password": password}
 
-    r = requests.post(loginUrl, data=payload)
+    r = requests.post(login_url, data=payload)
     return f"AR-JWT {r.text}" if (r.status_code == 200) else ""
 
 
-def logoutFromRemedy(url, token):
+def logout_from_remedy(url: str, token: str) -> bool:
     ''' Function to logout from Remedy, invalidating the given token
 
         Inputs
             authToken: Remedy AR-JWT authentication token
     '''
 
-    logoutUrl = f"{url}{logoutPath}"
+    logout_url = f"{url}{logout_path}"
     headers = {'Authorization': token}
-    r = requests.post(logoutUrl, headers=headers)
+    r = requests.post(logout_url, headers=headers)
 
     logging.info("=============================")
     if (200 <= r.status_code <= 299):
         logging.info("Successful logout from Remedy")
+        return True
     else:
         logging.error(
             "Failed to logout from Remedy: ({r.status_code}) {r.text}")
+        return False
 
 
-def getRemedyRequestId(url, token, incidentNumber):
+def get_remedy_request_id(url: str, token: str, incident_number: str) -> str:
     ''' Retrieves the Request ID from the incident interface form for a given
         incident number. This ID is required when modifying an incident record.
 
         Inputs
             authToken: A current Remedy AR-JWT authentication token
-            incidentNumber: The Remedy incident number (INCnnnnn...)
+            incident_number: The Remedy incident number (INCnnnnn...)
 
         Outputs
-            requestId: The interface form request ID (INCnnnn...|INCnnnn...)
+            request_id: The interface form request ID (INCnnnn...|INCnnnn...)
     '''
 
-    requestId = ""
-    remedyQuery = f"""('Incident Number'="{incidentNumber}")"""
-    targetUrl = f"{url}{entryPath}{remedyModifyForm}"
-    logging.debug(f"Target URL: {targetUrl}")
+    request_id = ""
+    remedy_query = f"""('Incident Number'="{incident_number}")"""
+    target_url = f"{url}{entry_path}{remedy_modify_form}"
+    logging.debug(f"Target URL: {target_url}")
     headers = {'Authorization': token}
     # r.add_header('Content-Type', 'application/json')
-    parameters = {'q': remedyQuery}
-    r = requests.get(targetUrl, headers=headers, params=parameters)
+    parameters = {'q': remedy_query}
+    r = requests.get(target_url, headers=headers, params=parameters)
 
     if (r.status_code == 200):
-        responseJson = r.json()
-        responseRecord = responseJson.get('entries')[0]
-        requestId = responseRecord.get('values').get('Request ID')
-        logging.debug(f"Request ID: {requestId}")
+        response_json = r.json()
+        response_record = response_json.get('entries')[0]
+        request_id = response_record.get('values').get('Request ID')
+        logging.debug(f"Request ID: {request_id}")
     else:
         logging.error(f"Error getting request ID: {r.text}")
 
-    return requestId
+    return request_id
 
 
-def modifyRemedyIncident(url, token, jsonBody, requestId):
+def modify_remedy_incident(url: str, token: str, json_body: str, request_id: str) -> bool:
     ''' Function to modify fields on an existing Remedy incident.
 
         Inputs
             authToken: A current Remedy AR-JWT authentication token
-            jsonBody: JSON string containing the new field values
-            requestId: Request ID identifying the incident in the interface form
+            json_body: JSON string containing the new field values
+            request_id: Request ID identifying the incident in the interface form
     '''
 
-    logging.debug(f"Going to modify incident ref: {requestId}")
-    logging.debug(jsonBody)
-    targetUrl = f"{url}{entryPath}{remedyModifyForm}/{requestId}"
-    logging.debug(f"URL: {targetUrl}")
+    logging.debug(f"Going to modify incident ref: {request_id}")
+    logging.debug(json_body)
+    target_url = f"{url}{entry_path}{remedy_modify_form}/{request_id}"
+    logging.debug(f"URL: {target_url}")
 
     headers = {'Authorization': token}
-    r = requests.put(targetUrl, json=jsonBody, headers=headers)
+    r = requests.put(target_url, json=json_body, headers=headers)
     if (200 <= r.status_code <= 299):
-        logging.debug(f"Incident modified: {targetUrl}")
+        logging.debug(f"Incident modified: {target_url}")
+        return True
     else:
         logging.error(f"Error modifying incident: {r.text}")
+        return False
 
 
-def createRemedyIncident(url, token, jsonBody):
+def create_remedy_incident(url: str, token: str, json_body: str) -> Tuple[str, str]:
     ''' Function to create a Remedy incident
 
         Inputs
             authToken: A current Remedy AR-JWT authentication token
-            jsonBody: JSON string containing the incident field values
+            json_body: JSON string containing the incident field values
 
         Outputs
-            incidentNumber: The Remedy incident number (INCnnnnn...)
-            requestId: Request ID identifying the incident in the interface form
+            incident_number: The Remedy incident number (INCnnnnn...)
+            request_id: Request ID identifying the incident in the interface form
     '''
 
-    requestId = ""
-    incidentNumber = ""
-    targetUrl = f"{url}{entryPath}{remedyCreateForm}"
+    request_id = ""
+    incident_number = ""
+    target_url = f"{url}{entry_path}{remedy_create_form}"
     headers = {'Authorization': token}
-    returnFields = ",".join(('Incident Number', 'Request ID'))
-    params = {'fields': f'values({returnFields})'}
-    r = requests.post(targetUrl, json=jsonBody, headers=headers, params=params)
+    return_fields = ",".join(('Incident Number', 'Request ID'))
+    params = {'fields': f'values({return_fields})'}
+    r = requests.post(target_url, json=json_body,
+                      headers=headers, params=params)
 
     if (r.status_code == 201):
-        incidentUrl = r.headers.get('Location')
-        responseJson = r.json()
-        incidentNumber = responseJson.get('values').get('Incident Number')
-        logging.debug(f"Incident {incidentNumber} created: {incidentUrl}")
+        incident_url = r.headers.get('Location')
+        response_json = r.json()
+        incident_number = response_json.get('values').get('Incident Number')
+        logging.debug(f"Incident {incident_number} created: {incident_url}")
 
-        requestId = getRemedyRequestId(url, token, incidentNumber)
+        request_id = get_remedy_request_id(url, token, incident_number)
     else:
         logging.error(f"Error creating incident: {r.text}")
 
-    return incidentNumber, requestId
+    return incident_number, request_id
