@@ -14,7 +14,7 @@ import time
 import traceback
 from pathlib import Path
 
-from integration.remedy_rest import *
+from integration.remedy_rest import RemedySession
 
 DEBUG_FLAG = False
 
@@ -43,47 +43,76 @@ with open(cc_file) as cc:
 with open(rv_file) as rv:
     runtime_values = json.load(rv)
 
+print(rest_config)
+
 
 def main():
     ''' Main routine to generate incidents with values randomly selected from the
         supplied configuration data (see config files)
     '''
+    remedy_create_form = rest_config.get('remedyCreateForm')
+    remedy_modify_form = rest_config.get('remedyModifyForm')
+
     remedy_url = rest_config.get('remedyApiUrl')
-    remedy_user = rest_config.get('remedy_user')
+    remedy_user = rest_config.get('remedyUser')
     remedy_password = base64.b64decode(
         rest_config.get('remedyBase64Password')).decode('UTF-8')
 
-    auth_token = login_to_remedy(remedy_url, remedy_user, remedy_password)
-    if auth_token:
+    logging.info(f"Checking values: {remedy_user=} {remedy_password=}")
+
+    with RemedySession(remedy_url, remedy_user, remedy_password) as session:
         error_count = 0
         for _ in range(runtime_values.get('incidentsToCreate')):
             incident_counter = runtime_values.get('nextIncidentNumber')
-            incident_request = create_random_incident(incident_counter)
+            incident_request = generate_random_incident(incident_counter)
             incident_data = incident_request.get('values')
             if incident_data:
                 company = incident_data.get('Company')
                 logging.info(" * Creating incident {} for company {}...".format(
                     incident_counter, company))
                 try:
-                    json_body = json.dumps(incident_request, indent=4)
-                    logging.debug(json_body)
-                    incident_number, incident_id = create_remedy_incident(
-                        remedy_url, auth_token, json_body)
+                    return_fields = ['Incident Number', 'Request ID']
+
+                    # Create the base incident
+                    incident_location, return_data = session.create_entry(
+                        remedy_create_form, incident_request, return_fields)
+
+                    values = return_data.get('values', {})
+                    incident_number = values.get('Incident Number')
+                    incident_id = values.get('Request ID')
                     logging.info(
                         "   +-- Incident {} created with status Assigned ({})".format(incident_number, incident_id))
-                    status = incident_data.get('Status')
-                    if (status in ['In Progress', 'Pending']):
-                        values = {"Status": status}
-                        if (status == 'Pending'):
-                            values['Status_Reason'] = incident_data.get(
-                                'Status_Reason')
+                    if incident_number:
+                        status = incident_data.get('Status')
+                        if status in ['In Progress', 'Pending']:
+                            # Find the entry ID of the incident in the Incident Modify form
+                            remedy_query = f"""('Incident Number'="{incident_number}")"""
+                            remedy_fields = ['Request ID']
+                            response_records = session.get_entry(
+                                remedy_modify_form, remedy_query, remedy_fields)
 
-                        update_body = {"values": values}
-                        json_update = json.dumps(update_body, indent=4)
-                        result = modify_remedy_incident(remedy_url,
-                                                        auth_token, json_update, incident_id)
-                        logging.info(
-                            "   +-- Incident {} modified to status {}".format(incident_number, status))
+                            entries = response_records.get('entries')
+                            if isinstance(entries, list):
+                                entry = entries[0]
+                                entry_values = entry.get('values', {})
+                                request_id = entry_values.get('Request ID')
+                                logging.debug(f"Request ID: {request_id}")
+                            else:
+                                raise TypeError("Expected a list of entries to be returned")
+
+                            # Modify the incident to set status if ticket is "In Progress" or "Pending"
+                            values = {"Status": status}
+                            if status == 'Pending':
+                                values['Status_Reason'] = incident_data.get(
+                                    'Status_Reason')
+
+                            update_body = {"values": values}
+                            result = session.modify_entry(
+                                remedy_modify_form, update_body, incident_number)
+                            logging.info(
+                                "   +-- Incident {} modified to status {}".format(incident_number, status))
+                        else:
+                            logging.error('Unable to retrieve incident number from create call')
 
                     runtime_values['nextIncidentNumber'] += 1
                 except Exception as err:
@@ -94,25 +123,17 @@ def main():
                 logging.error(
                     'Incident creation has failed -- no values found')
 
-        if logout_from_remedy(remedy_url, auth_token):
-            logging.debug("Logged out from Remedy successfully")
-        else:
-            logging.error("Failed to logout from Remedy")
+    if (error_count > 0):
+        errorText = "error" if error_count == 1 else "errors"
+        logging.info(
+            "**** Total of {} {} occurred during execution ****".format(error_count, errorText))
 
-        if (error_count > 0):
-            errorText = "error" if error_count == 1 else "errors"
-            logging.info(
-                "**** Total of {} {} occurred during execution ****".format(error_count, errorText))
-
-        # Save runtime Values to file
-        with open(rv_file, 'w') as rv:
-            json.dump(runtime_values, rv, indent=4)
-
-    else:
-        logging.critical("Failed to login to Remedy.")
+    # Save runtime Values to file
+    with open(rv_file, 'w') as rv:
+        json.dump(runtime_values, rv, indent=4)
 
 
-def create_random_incident(incident_counter):
+def generate_random_incident(incident_counter):
     ''' This function generates a data structure containing ticket data in a format
         that is ready to push to Remedy's REST API.
 
