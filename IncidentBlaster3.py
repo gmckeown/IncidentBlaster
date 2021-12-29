@@ -43,8 +43,6 @@ with open(cc_file) as cc:
 with open(rv_file) as rv:
     runtime_values = json.load(rv)
 
-print(rest_config)
-
 
 def main():
     ''' Main routine to generate incidents with values randomly selected from the
@@ -57,8 +55,6 @@ def main():
     remedy_user = rest_config.get('remedyUser')
     remedy_password = base64.b64decode(
         rest_config.get('remedyBase64Password')).decode('UTF-8')
-
-    logging.info(f"Checking values: {remedy_user=} {remedy_password=}")
 
     with RemedySession(remedy_url, remedy_user, remedy_password) as session:
         error_count = 0
