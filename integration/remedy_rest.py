@@ -1,6 +1,5 @@
 import json
 import logging
-from json.decoder import JSONDecoder
 from typing import Tuple
 
 import requests
