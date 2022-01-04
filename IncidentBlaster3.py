@@ -13,6 +13,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from typing import Dict
 
 from integration.remedy_rest import RemedySession
 
@@ -64,8 +65,8 @@ def main():
             incident_data = incident_request.get('values')
             if incident_data:
                 company = incident_data.get('Company')
-                logging.info(" * Creating incident {} for company {}...".format(
-                    incident_counter, company))
+                logging.info(
+                    f" * Creating incident {incident_counter} for company {company}...")
                 try:
                     return_fields = ['Incident Number', 'Request ID']
 
@@ -77,7 +78,7 @@ def main():
                     incident_number = values.get('Incident Number')
                     incident_id = values.get('Request ID')
                     logging.info(
-                        "   +-- Incident {} created with status Assigned ({})".format(incident_number, incident_id))
+                        f"   +-- Incident {incident_number} created with status Assigned ({incident_id})")
                     if incident_number:
                         status = incident_data.get('Status')
                         if status in ['In Progress', 'Pending']:
@@ -107,14 +108,14 @@ def main():
                             result = session.modify_entry(
                                 remedy_modify_form, update_body, incident_number)
                             logging.info(
-                                "   +-- Incident {} modified to status {}".format(incident_number, status))
+                                f"   +-- Incident {incident_number} modified to status {status}")
                         else:
                             logging.error(
                                 'Unable to retrieve incident number from create call')
 
                     runtime_values['nextIncidentNumber'] += 1
                 except Exception as err:
-                    logging.error("Error: {}".format(err))
+                    logging.error(f"Error: {err}")
                     logging.error(traceback.format_exc())
                     error_count += 1
             else:
@@ -122,9 +123,9 @@ def main():
                     'Incident creation has failed -- no values found')
 
     if (error_count > 0):
-        errorText = "error" if error_count == 1 else "errors"
+        error_text = "error" if error_count == 1 else "errors"
         logging.info(
-            "**** Total of {} {} occurred during execution ****".format(error_count, errorText))
+            f"**** Total of {error_count} {error_text} occurred during execution ****")
 
     # Save runtime Values to file
     with open(rv_file, 'w') as rv:
@@ -145,8 +146,8 @@ def generate_random_incident(incident_counter):
             incident_request: Dictionary containing the generated incident structure
     '''
 
-    description = "Test incident {} created with Incident Blaster: {}".format(
-        incident_counter, datetime.datetime.today())
+    description = f"Test incident {incident_counter} created with Incident Blaster: {datetime.datetime.today()}"
+    notes = f"These are the notes for test incident {incident_counter}."
 
     # Standard Remedy Elements
     status = random.choice(remedy_config.get('Statuses'))
@@ -168,6 +169,7 @@ def generate_random_incident(incident_counter):
     values = {
         'Login_ID': random.choice(company_config.get('ContactLogonIDs')),
         'Description': description,
+        'Detailed Decription': notes,
         'Impact': random.choice(remedy_config.get('Impacts')),
         'Urgency': random.choice(remedy_config.get('Urgencies')),
         'Status': status,
