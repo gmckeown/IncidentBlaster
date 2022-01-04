@@ -88,13 +88,14 @@ def main():
                                 remedy_modify_form, remedy_query, remedy_fields)
 
                             entries = response_records.get('entries')
-                            if isinstance(entries, list):
-                                entry = entries[0]
-                                entry_values = entry.get('values', {})
-                                request_id = entry_values.get('Request ID')
-                                logging.debug(f"Request ID: {request_id}")
-                            else:
-                                raise TypeError("Expected a list of entries to be returned")
+                            if not isinstance(entries, list):
+                                raise TypeError(
+                                    "Expected a list of entries to be returned")
+
+                            entry = entries[0]
+                            entry_values = entry.get('values', {})
+                            request_id = entry_values.get('Request ID')
+                            logging.debug(f"Request ID: {request_id}")
 
                             # Modify the incident to set status if ticket is "In Progress" or "Pending"
                             values = {"Status": status}
@@ -108,7 +109,8 @@ def main():
                             logging.info(
                                 "   +-- Incident {} modified to status {}".format(incident_number, status))
                         else:
-                            logging.error('Unable to retrieve incident number from create call')
+                            logging.error(
+                                'Unable to retrieve incident number from create call')
 
                     runtime_values['nextIncidentNumber'] += 1
                 except Exception as err:
