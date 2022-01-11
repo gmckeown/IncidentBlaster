@@ -14,6 +14,8 @@ There are two versions of the script:
 - ***StandardConfig.json*** contains the base data that is typically common across installations
 - ***CustomerConfig.json*** contains the foundation data that tends to be unique to an installation
 
+For `RestConfig.json` and `RuntimeValues.json`, take copies of the template versions of these files and substitute in your own configuration.
+
 **NOTE:** To change the fields set on create, currently you'll need to edit the script.
 
 ***WARNING:*** You probably want to create one or two incidents at a time into a test environment initially!
