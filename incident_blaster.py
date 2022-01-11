@@ -5,6 +5,7 @@
 #   incidents can be created in a short space of time!
 
 import base64
+import binascii
 import datetime
 import json
 import logging
@@ -21,27 +22,56 @@ DEBUG_FLAG = False
 LOG_LEVEL = logging.DEBUG if DEBUG_FLAG else logging.INFO
 logging.basicConfig(stream=sys.stdout, level=LOG_LEVEL)
 
-config_folder = Path(sys.path[0]) / "config"
-rc_file = config_folder / "RestConfig.json"
-sc_file = config_folder / "StandardConfig.json"
-cc_file = config_folder / "CustomerConfig.json"
-rv_file = config_folder / "RuntimeValues.json"
+rest_config = {}
+remedy_config = {}
+customer_config = {}
+runtime_values = {}
 
-# Load Configuration (Connectivity)
-with open(rc_file) as rc:
-    rest_config = json.load(rc)
+DEFAULT_TARGET_DAYS = 30
 
-# Load Configuration (Standard Remedy Elements)
-with open(sc_file) as sc:
-    remedy_config = json.load(sc)
 
-# Load Configuration (Customer Specific Elements)
-with open(cc_file) as cc:
-    customer_config = json.load(cc)
+def get_config_filenames() -> dict[str, Path]:
+    """Determine relative paths for config files and return as a dict"""
+    config_folder = Path(sys.path[0]) / "config"
+    return {
+        "rc": config_folder / "RestConfig.json",
+        "sc": config_folder / "StandardConfig.json",
+        "cc": config_folder / "CustomerConfig.json",
+        "rv": config_folder / "RuntimeValues.json",
+    }
 
-# Load Configuration (Runtime Values)
-with open(rv_file) as rv:
-    runtime_values = json.load(rv)
+
+def load_config():
+    """Load configuration from external JSON files"""
+    # TODO: Improve configuration loading/handling
+    global rest_config, remedy_config, customer_config, runtime_values
+    configs = get_config_filenames()
+
+    # Load Configuration (Connectivity)
+    with open(configs["rc"]) as rcf:
+        rest_config = json.load(rcf)
+
+    # Load Configuration (Standard Remedy Elements)
+    with open(configs["sc"]) as scf:
+        remedy_config = json.load(scf)
+
+    # Load Configuration (Customer Specific Elements)
+    with open(configs["cc"]) as ccf:
+        customer_config = json.load(ccf)
+
+    # Load Configuration (Runtime Values)
+    with open(configs["rv"]) as rvf:
+        runtime_values = json.load(rvf)
+
+    return rest_config, remedy_config, customer_config, runtime_values
+
+
+def save_config():
+    """Save runtime Values to file"""
+    configs = get_config_filenames()
+
+    with open(configs["rv"], "w") as rvw:
+        json.dump(runtime_values, rvw, indent=4)
 
 
 def create_incident(session, incident_request: dict):
@@ -51,6 +81,7 @@ def create_incident(session, incident_request: dict):
     remedy_modify_form = rest_config.get("remedyModifyForm")
     incident_data = incident_request.get("values", {})
 
+    # logging.info(json.dumps(incident_request, indent=4))
     # Create the base incident
     incident_location, return_data = session.create_entry(
         remedy_create_form, incident_request, return_fields
@@ -89,10 +120,8 @@ def create_incident(session, incident_request: dict):
             values["Status_Reason"] = incident_data.get("Status_Reason", "")
 
         update_body = {"values": values}
-        session.modify_entry(remedy_modify_form, update_body, incident_number)
+        session.modify_entry(remedy_modify_form, update_body, request_id)
         logging.info(f"   +-- Incident {incident_number} modified to status {status}")
-    else:
-        logging.error("Unable to retrieve incident number from create call")
 
 
 def main():
@@ -100,16 +129,23 @@ def main():
     supplied configuration data (see config files)
     """
 
-    remedy_url = rest_config.get("remedyApiUrl")
-    remedy_user = rest_config.get("remedyUser")
-    remedy_password = base64.b64decode(rest_config.get("remedyBase64Password")).decode(
-        "UTF-8"
-    )
+    load_config()
+    remedy_url = rest_config.get("remedyApiUrl", "")
+    remedy_user = rest_config.get("remedyUser", "")
+    try:
+        remedy_password = base64.b64decode(
+            rest_config.get("remedyBase64Password", b"")
+        ).decode("UTF-8")
+    except (UnicodeDecodeError, binascii.Error):
+        logging.error(
+            "Couldn't decode password in config file. Please check it's a valid BASE64 string!"
+        )
+        sys.exit("Failed to read password from config")
 
     with RemedySession(remedy_url, remedy_user, remedy_password) as session:
         error_count = 0
-        for _ in range(runtime_values.get("incidentsToCreate")):
-            incident_counter = runtime_values.get("nextIncidentNumber")
+        for _ in range(runtime_values.get("incidentsToCreate", 0)):
+            incident_counter = runtime_values.get("nextIncidentNumber", 1)
             incident_request = generate_random_incident(incident_counter)
             incident_data = incident_request.get("values")
             if not incident_data:
@@ -119,6 +155,7 @@ def main():
                 f" * Creating incident {incident_counter} for company {company}..."
             )
             try:
+                logging.debug(json.dumps(incident_request, indent=4))
                 create_incident(session, incident_request)
                 runtime_values["nextIncidentNumber"] += 1
             except RemedyException as err:
@@ -136,9 +173,7 @@ def main():
             f"**** Total of {error_count} {error_text} occurred during execution ****"
         )
 
-    # Save runtime Values to file
-    with open(rv_file, "w") as rvw:
-        json.dump(runtime_values, rvw, indent=4)
+    save_config()
 
 
 def generate_random_incident(incident_counter: int) -> dict[str, dict[str, str]]:
@@ -159,43 +194,44 @@ def generate_random_incident(incident_counter: int) -> dict[str, dict[str, str]]
     notes = f"These are the notes for test incident {incident_counter}."
 
     # Standard Remedy Elements
-    status = random.choice(remedy_config.get("Statuses"))
+    status = random.choice(remedy_config.get("Statuses", []))
 
     # Customer-specific Elements
     company = random.choice(list(customer_config.keys()))
-    company_config = customer_config.get(company)
-    assignee_group = random.choice(list(company_config.get("Assignees").keys()))
-    support_details = company_config.get("Assignees").get(assignee_group)
+    company_config = customer_config.get(company, {})
+    assignee_group = random.choice(list(company_config.get("Assignees", {}).keys()))
+    support_details = company_config.get("Assignees", {}).get(assignee_group, {})
 
     # Generate a random time from (now + 60 seconds) to a defined maximum
     target_epoch = int(time.time()) + random.randint(
-        60, runtime_values.get("targetMaxDaysAhead") * 24 * 60 * 60
+        60, runtime_values.get("targetMaxDaysAhead", DEFAULT_TARGET_DAYS) * 24 * 60 * 60
     )
-    target_human = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.localtime(target_epoch))
+    # target_human = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.localtime(target_epoch))
 
     values = {
-        "Login_ID": random.choice(company_config.get("ContactLogonIDs")),
+        "Login_ID": random.choice(company_config.get("ContactLogonIDs", [])),
         "Description": description,
-        "Detailed Decription": notes,
-        "Impact": random.choice(remedy_config.get("Impacts")),
-        "Urgency": random.choice(remedy_config.get("Urgencies")),
+        "Detailed_Decription": notes,
+        "Impact": random.choice(remedy_config.get("Impacts", [])),
+        "Urgency": random.choice(remedy_config.get("Urgencies", [])),
         "Status": status,
-        "Reported Source": random.choice(remedy_config.get("Sources")),
-        "Service_Type": random.choice(remedy_config.get("IncidentTypes")),
+        "Reported Source": random.choice(remedy_config.get("Sources", [])),
+        "Service_Type": random.choice(remedy_config.get("IncidentTypes", [])),
         "Company": company,
         "z1D_Action": "CREATE",
-        "ServiceCI": random.choice(company_config.get("Services")),
-        "CI Name": random.choice(company_config.get("CIs")),
+        "ServiceCI": random.choice(company_config.get("Services", [])),
+        "CI Name": random.choice(company_config.get("CIs", [])),
         "Assigned Support Company": support_details.get("Support Company"),
         "Assigned Support Organization": support_details.get("Support Organisation"),
         "Assigned Group": assignee_group,
-        "Estimated Resolution Date": target_human,
+        # "Estimated Resolution Date": target_human,
     }
     if status in ["In Progress", "Pending"]:
-        values["Assignee"] = random.choice(support_details.get("Support Assignees"))
+        values["Assignee"] = random.choice(support_details.get("Support Assignees", []))
     if status == "Pending":
-        values["Status_Reason"] = random.choice(remedy_config.get("PendingReasons"))
+        values["Status_Reason"] = random.choice(remedy_config.get("PendingReasons", []))
 
+    logging.debug(f"Generated incident:\n{values}")
     return {"values": values}
 
 
