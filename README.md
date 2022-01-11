@@ -31,7 +31,7 @@ On Windows you can use PowerShell:
 ***WARNING:*** You probably want to create one or two incidents at a time into a test environment initially!
 
 ## Compatibility
-The script is designed to work with Python 2.7 using only standard modules, since that was what was available in the environment in which it was first needed. It could undoubtedly be improved by moving to Python 3 and using the Requests module!
+The original script is designed to work with Python 2.7 using only standard modules, since that was what was available in the environment in which it was first needed. The new, primary, version of the script is designed to work with Python 3 and needs a minimum of Python 3.6. This minimum version is driven largely by the use of f-strings in the code. We also using the `typing` module (needs Python 3.5+), and `pathlib` (needs Python 3.4+).
 
 ## Troubleshooting
 If you aren't getting the results you expect, set the debug flag in the script to True and that may help identify the problem (yes, command-line argument support for this would be a good idea...).
