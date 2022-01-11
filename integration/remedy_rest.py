@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 import requests
 
@@ -82,7 +82,7 @@ class RemedySession:
         self.auth_token = None
 
     def create_entry(
-        self, form: str, field_values: dict, return_fields: list[str] | None
+        self, form: str, field_values: dict, return_fields: Optional[List[str]]
     ) -> Tuple[str, dict]:
         """Method to create a Remedy form entry
 
@@ -150,7 +150,9 @@ class RemedySession:
         logging.error(f"Error modifying incident: {response.text}")
         raise RemedyException("Failed to modify the incident")
 
-    def get_entry(self, form: str, query: str, return_fields: list[str] | None) -> dict:
+    def get_entry(
+        self, form: str, query: str, return_fields: Optional[List[str]]
+    ) -> dict:
         """Retrieves entries on a form based on a provided search qualification
 
         Inputs
