@@ -1,3 +1,5 @@
+""" Remedy REST API Functions Wrapper Module """
+
 import json
 import logging
 from typing import Tuple
@@ -49,11 +51,11 @@ class RemedySession:
         """Context manager entry method"""
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exctype, excvalue, traceback):
         """Context manager exit method"""
         if self.auth_token:
             self.logout()
-        if type:
+        if exctype:
             logging.info(f"Exception type was specified! {type}")
         return True
 
@@ -102,17 +104,17 @@ class RemedySession:
         else:
             params = None
 
-        r = requests.post(
+        response = requests.post(
             target_url, json=json.dumps(field_values), headers=headers, params=params
         )
 
-        if not r.ok:
-            raise RemedyException(f"Failed to create entry: {r.text}")
+        if not response.ok:
+            raise RemedyException(f"Failed to create entry: {response.text}")
 
-        location = r.headers.get("Location") or ""
-        return location, r.json()
+        location = response.headers.get("Location") or ""
+        return location, response.json()
 
-    def modify_entry(self, form: str, field_values: dict, entry_id: str) -> bool:
+    def modify_entry(self, form: str, field_values: dict, entry_id: str) -> None:
         """Function to modify fields on an existing Remedy incident.
 
         Inputs
@@ -131,13 +133,15 @@ class RemedySession:
         logging.debug(f"URL: {target_url}")
 
         headers = {"Authorization": self.auth_token}
-        r = requests.put(target_url, json=json.dumps(field_values), headers=headers)
-        if r.ok:
+        response = requests.put(
+            target_url, json=json.dumps(field_values), headers=headers
+        )
+        if response.ok:
             logging.debug(f"Incident modified: {target_url}")
-            return True
-        else:
-            logging.error(f"Error modifying incident: {r.text}")
-            return False
+            return
+
+        logging.error(f"Error modifying incident: {response.text}")
+        raise RemedyException("Failed to modify the incident")
 
     def get_entry(self, form: str, query: str, return_fields: list[str] | None) -> dict:
         """Retrieves entries on a form based on a provided search qualification
@@ -161,9 +165,9 @@ class RemedySession:
         if return_fields:
             fields = ",".join(return_fields)
             params["fields"] = f"values({fields})"
-        r = requests.get(target_url, headers=headers, params=params)
+        response = requests.get(target_url, headers=headers, params=params)
 
-        if r.ok:
-            return r.json()
-        else:
-            raise RemedyException(f"Error getting entry: {r.text}")
+        if response.ok:
+            return response.json()
+
+        raise RemedyException(f"Error getting entry: {response.text}")
