@@ -1,6 +1,12 @@
+# Specific customer configurations (may contain sensitive data)
 privateConfigs
 
-# Python
+# Prevent Git from grabbing active versions of customer configuration
+# (Only the default template versions should be managed by Git)
+/config/RestConfig.json
+/config/RuntimeValues.json
+
+# Python-related exclusions
 __pycache__/
 *.py[cod]
 .venv/
