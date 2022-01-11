@@ -40,10 +40,14 @@ class RemedySession:
         logging.info(f"========================{'=' * len(username)}")
 
         payload = {"username": username, "password": password}
-        response = requests.post(f"{self.remedy_base_url}{LOGIN_PATH}", data=payload)
+        login_url = f"{self.remedy_base_url}{LOGIN_PATH}"
+        logging.debug(login_url)
+        response = requests.post(login_url, data=payload)
 
         if not response.ok:
-            raise RemedyLoginException("Failed to login to Remedy server")
+            raise RemedyLoginException(
+                f"Failed to login to Remedy server: HTTP {response.status_code} ({response.reason})"
+            )
 
         self.auth_token = f"AR-JWT {response.text}"
 
@@ -104,8 +108,13 @@ class RemedySession:
         else:
             params = None
 
+        logging.debug(json.dumps(field_values, indent=4))
+        logging.debug(target_url)
+        logging.debug(headers)
+        logging.debug(params)
+
         response = requests.post(
-            target_url, json=json.dumps(field_values), headers=headers, params=params
+            target_url, json=field_values, headers=headers, params=params
         )
 
         if not response.ok:
@@ -133,9 +142,7 @@ class RemedySession:
         logging.debug(f"URL: {target_url}")
 
         headers = {"Authorization": self.auth_token}
-        response = requests.put(
-            target_url, json=json.dumps(field_values), headers=headers
-        )
+        response = requests.put(target_url, json=field_values, headers=headers)
         if response.ok:
             logging.debug(f"Incident modified: {target_url}")
             return
