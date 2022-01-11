@@ -14,6 +14,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from typing import Dict
 
 from integration.remedy_rest import RemedyException, RemedySession
 
@@ -30,7 +31,7 @@ runtime_values = {}
 DEFAULT_TARGET_DAYS = 30
 
 
-def get_config_filenames() -> dict[str, Path]:
+def get_config_filenames() -> Dict[str, Path]:
     """Determine relative paths for config files and return as a dict"""
     config_folder = Path(sys.path[0]) / "config"
     return {
@@ -176,7 +177,7 @@ def main():
     save_config()
 
 
-def generate_random_incident(incident_counter: int) -> dict[str, dict[str, str]]:
+def generate_random_incident(incident_counter: int) -> Dict[str, Dict[str, str]]:
     """This function generates a data structure containing ticket data in a format
     that is ready to push to Remedy's REST API.
 
