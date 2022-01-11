@@ -14,6 +14,8 @@ There are two versions of the script:
 - ***StandardConfig.json*** contains the base data that is typically common across installations
 - ***CustomerConfig.json*** contains the foundation data that tends to be unique to an installation
 
+For `RestConfig.json` and `RuntimeValues.json`, take copies of the template versions of these files and substitute in your own configuration.
+
 The password should be BASE64 encoded before placing into the REST Config file. There are many online services that can do this, or if you're a little more cautious you can use the following on Linux:
 ```Bash
 echo -n "MyP@ssw0rd" | base64
