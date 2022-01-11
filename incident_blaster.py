@@ -3,8 +3,6 @@
 #
 # BE CAREFUL! Check configuration carefully before running this script; many
 #   incidents can be created in a short space of time!
-# Note: this uses the Urllib module rather than Requests so that it can work
-#   in environments with only the base set of Python modules.
 
 import base64
 import datetime
@@ -16,7 +14,7 @@ import time
 import traceback
 from pathlib import Path
 
-from integration.remedy_rest import RemedySession
+from integration.remedy_rest import RemedyException, RemedySession
 
 DEBUG_FLAG = False
 
@@ -46,12 +44,61 @@ with open(rv_file) as rv:
     runtime_values = json.load(rv)
 
 
+def create_incident(session, incident_request: dict):
+    """Create Remedy incident and modify status if required"""
+    return_fields = ["Incident Number", "Request ID"]
+    remedy_create_form = rest_config.get("remedyCreateForm")
+    remedy_modify_form = rest_config.get("remedyModifyForm")
+    incident_data = incident_request.get("values", {})
+
+    # Create the base incident
+    incident_location, return_data = session.create_entry(
+        remedy_create_form, incident_request, return_fields
+    )
+
+    values = return_data.get("values", {})
+    incident_number = values.get("Incident Number")
+    incident_id = values.get("Request ID")
+    logging.info(
+        f"   +-- Incident {incident_number} created with status Assigned ({incident_id})"
+    )
+    if not incident_number:
+        raise RemedyException("Failed to create incident")
+
+    status = incident_data.get("Status")
+    if status in ["In Progress", "Pending"]:
+        # Find the entry ID of the incident in the Incident Modify form
+        remedy_query = f"""('Incident Number'="{incident_number}")"""
+        remedy_fields = ["Request ID"]
+        response_records = session.get_entry(
+            remedy_modify_form, remedy_query, remedy_fields
+        )
+
+        entries = response_records.get("entries")
+        if not isinstance(entries, list):
+            raise TypeError("Expected a list of entries to be returned")
+
+        entry = entries[0]
+        entry_values = entry.get("values", {})
+        request_id = entry_values.get("Request ID")
+        logging.debug(f"Request ID: {request_id}")
+
+        # Modify the incident to set status if ticket is "In Progress" or "Pending"
+        values = {"Status": status}
+        if status == "Pending":
+            values["Status_Reason"] = incident_data.get("Status_Reason", "")
+
+        update_body = {"values": values}
+        session.modify_entry(remedy_modify_form, update_body, incident_number)
+        logging.info(f"   +-- Incident {incident_number} modified to status {status}")
+    else:
+        logging.error("Unable to retrieve incident number from create call")
+
+
 def main():
     """Main routine to generate incidents with values randomly selected from the
     supplied configuration data (see config files)
     """
-    remedy_create_form = rest_config.get("remedyCreateForm")
-    remedy_modify_form = rest_config.get("remedyModifyForm")
 
     remedy_url = rest_config.get("remedyApiUrl")
     remedy_user = rest_config.get("remedyUser")
@@ -65,74 +112,23 @@ def main():
             incident_counter = runtime_values.get("nextIncidentNumber")
             incident_request = generate_random_incident(incident_counter)
             incident_data = incident_request.get("values")
-            if incident_data:
-                company = incident_data.get("Company")
-                logging.info(
-                    f" * Creating incident {incident_counter} for company {company}..."
-                )
-                try:
-                    return_fields = ["Incident Number", "Request ID"]
-
-                    # Create the base incident
-                    incident_location, return_data = session.create_entry(
-                        remedy_create_form, incident_request, return_fields
-                    )
-
-                    values = return_data.get("values", {})
-                    incident_number = values.get("Incident Number")
-                    incident_id = values.get("Request ID")
-                    logging.info(
-                        f"   +-- Incident {incident_number} created with status Assigned ({incident_id})"
-                    )
-                    if incident_number:
-                        status = incident_data.get("Status")
-                        if status in ["In Progress", "Pending"]:
-                            # Find the entry ID of the incident in the Incident Modify form
-                            remedy_query = (
-                                f"""('Incident Number'="{incident_number}")"""
-                            )
-                            remedy_fields = ["Request ID"]
-                            response_records = session.get_entry(
-                                remedy_modify_form, remedy_query, remedy_fields
-                            )
-
-                            entries = response_records.get("entries")
-                            if not isinstance(entries, list):
-                                raise TypeError(
-                                    "Expected a list of entries to be returned"
-                                )
-
-                            entry = entries[0]
-                            entry_values = entry.get("values", {})
-                            request_id = entry_values.get("Request ID")
-                            logging.debug(f"Request ID: {request_id}")
-
-                            # Modify the incident to set status if ticket is "In Progress" or "Pending"
-                            values = {"Status": status}
-                            if status == "Pending":
-                                values["Status_Reason"] = incident_data.get(
-                                    "Status_Reason", ""
-                                )
-
-                            update_body = {"values": values}
-                            result = session.modify_entry(
-                                remedy_modify_form, update_body, incident_number
-                            )
-                            logging.info(
-                                f"   +-- Incident {incident_number} modified to status {status}"
-                            )
-                        else:
-                            logging.error(
-                                "Unable to retrieve incident number from create call"
-                            )
-
-                    runtime_values["nextIncidentNumber"] += 1
-                except Exception as err:
-                    logging.error(f"Error: {err}")
-                    logging.error(traceback.format_exc())
-                    error_count += 1
-            else:
-                logging.error("Incident creation has failed -- no values found")
+            if not incident_data:
+                raise ValueError("Incident generation failed")
+            company = incident_data.get("Company")
+            logging.info(
+                f" * Creating incident {incident_counter} for company {company}..."
+            )
+            try:
+                create_incident(session, incident_request)
+                runtime_values["nextIncidentNumber"] += 1
+            except RemedyException as err:
+                logging.error(f"Error: {err}")
+                logging.error(traceback.format_exc())
+                error_count += 1
+            except Exception as err:
+                logging.error(f"Error: {err}")
+                logging.error(traceback.format_exc())
+                error_count += 1
 
     if error_count > 0:
         error_text = "error" if error_count == 1 else "errors"
