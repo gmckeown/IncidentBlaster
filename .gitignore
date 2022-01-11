@@ -5,6 +5,7 @@ privateConfigs
 # (Only the default template versions should be managed by Git)
 /config/RestConfig.json
 /config/RuntimeValues.json
+/config/CustomerConfig.json
 
 # Python-related exclusions
 __pycache__/
