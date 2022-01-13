@@ -97,10 +97,10 @@ def create_incident(session, incident_request: dict):
 
     status = incident_data.get("Status")
     if status in ["In Progress", "Pending"]:
-        update_ticket_status(incident_number, session, status, incident_data)
+        update_incident_status(incident_number, session, status, incident_data)
 
 
-def update_ticket_status(incident_number, session, status, incident_data):
+def update_incident_status(incident_number, session, status, incident_data):
     # Find the entry ID of the incident in the Incident Modify form
     remedy_query = f"""('Incident Number'="{incident_number}")"""
     response_records = session.get_entry(
