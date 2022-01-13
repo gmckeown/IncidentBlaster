@@ -78,14 +78,12 @@ def save_config():
 def create_incident(session, incident_request: dict):
     """Create Remedy incident and modify status if required"""
     return_fields = ["Incident Number", "Request ID"]
-    remedy_create_form = rest_config.get("remedyCreateForm")
-    remedy_modify_form = rest_config.get("remedyModifyForm")
     incident_data = incident_request.get("values", {})
 
     # logging.info(json.dumps(incident_request, indent=4))
     # Create the base incident
     incident_location, return_data = session.create_entry(
-        remedy_create_form, incident_request, return_fields
+        rest_config.get("remedyCreateForm"), incident_request, return_fields
     )
 
     values = return_data.get("values", {})
@@ -99,30 +97,33 @@ def create_incident(session, incident_request: dict):
 
     status = incident_data.get("Status")
     if status in ["In Progress", "Pending"]:
-        # Find the entry ID of the incident in the Incident Modify form
-        remedy_query = f"""('Incident Number'="{incident_number}")"""
-        remedy_fields = ["Request ID"]
-        response_records = session.get_entry(
-            remedy_modify_form, remedy_query, remedy_fields
-        )
+        update_ticket_status(incident_number, session, status, incident_data)
 
-        entries = response_records.get("entries")
-        if not isinstance(entries, list):
-            raise TypeError("Expected a list of entries to be returned")
 
-        entry = entries[0]
-        entry_values = entry.get("values", {})
-        request_id = entry_values.get("Request ID")
-        logging.debug(f"Request ID: {request_id}")
+def update_ticket_status(incident_number, session, status, incident_data):
+    # Find the entry ID of the incident in the Incident Modify form
+    remedy_query = f"""('Incident Number'="{incident_number}")"""
+    response_records = session.get_entry(
+        rest_config.get("remedyModifyForm"), remedy_query, ["Request ID"]
+    )
 
-        # Modify the incident to set status if ticket is "In Progress" or "Pending"
-        values = {"Status": status}
-        if status == "Pending":
-            values["Status_Reason"] = incident_data.get("Status_Reason", "")
+    entries = response_records.get("entries")
+    if not isinstance(entries, list):
+        raise TypeError("Expected a list of entries to be returned")
 
-        update_body = {"values": values}
-        session.modify_entry(remedy_modify_form, update_body, request_id)
-        logging.info(f"   +-- Incident {incident_number} modified to status {status}")
+    entry = entries[0]
+    entry_values = entry.get("values", {})
+    request_id = entry_values.get("Request ID")
+    logging.debug(f"Request ID: {request_id}")
+
+    # Modify the incident to set status if ticket is "In Progress" or "Pending"
+    values = {"Status": status}
+    if status == "Pending":
+        values["Status_Reason"] = incident_data.get("Status_Reason", "")
+
+    update_body = {"values": values}
+    session.modify_entry(rest_config.get("remedyModifyForm"), update_body, request_id)
+    logging.info(f"   +-- Incident {incident_number} modified to status {status}")
 
 
 def main():
@@ -191,7 +192,10 @@ def generate_random_incident(incident_counter: int) -> Dict[str, Dict[str, str]]
         incident_request: Dictionary containing the generated incident structure
     """
 
-    description = f"Test incident {incident_counter} created with Incident Blaster: {datetime.datetime.today()}"
+    description = (
+        f"Test incident {incident_counter} created with Incident Blaster: "
+        f"{datetime.datetime.today()}"
+    )
     notes = f"These are the notes for test incident {incident_counter}."
 
     # Standard Remedy Elements
