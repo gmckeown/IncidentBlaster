@@ -11,7 +11,8 @@ import json
 import logging
 import random
 import sys
-import time
+
+# import time
 import traceback
 from pathlib import Path
 from typing import Dict
@@ -82,7 +83,7 @@ def create_incident(session, incident_request: dict):
 
     # logging.info(json.dumps(incident_request, indent=4))
     # Create the base incident
-    incident_location, return_data = session.create_entry(
+    _, return_data = session.create_entry(
         rest_config.get("remedyCreateForm"), incident_request, return_fields
     )
 
@@ -101,6 +102,9 @@ def create_incident(session, incident_request: dict):
 
 
 def update_incident_status(incident_number, session, status, incident_data):
+    """Update the status of the incident, also setting the stats reason
+    if the status is set to Pending"""
+
     # Find the entry ID of the incident in the Incident Modify form
     remedy_query = f"""('Incident Number'="{incident_number}")"""
     response_records = session.get_entry(
@@ -169,10 +173,9 @@ def main():
                 logging.error(traceback.format_exc())
                 error_count += 1
 
-    if error_count > 0:
-        error_text = "error" if error_count == 1 else "errors"
+    if error_count:
         logging.info(
-            f"**** Total of {error_count} {error_text} occurred during execution ****"
+            f"**** Total of {error_count} error{'s'[:error_count^1]} occurred during run ****"
         )
 
     save_config()
@@ -208,9 +211,9 @@ def generate_random_incident(incident_counter: int) -> Dict[str, Dict[str, str]]
     support_details = company_config.get("Assignees", {}).get(assignee_group, {})
 
     # Generate a random time from (now + 60 seconds) to a defined maximum
-    target_epoch = int(time.time()) + random.randint(
-        60, runtime_values.get("targetMaxDaysAhead", DEFAULT_TARGET_DAYS) * 24 * 60 * 60
-    )
+    # target_epoch = int(time.time()) + random.randint(
+    #     60, runtime_values.get("targetMaxDaysAhead", DEFAULT_TARGET_DAYS) * 24 * 60 * 60
+    # )
     # target_human = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.localtime(target_epoch))
 
     values = {
