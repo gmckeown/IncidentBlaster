@@ -14,15 +14,17 @@
                 "Support Company": "Calbro Services",
                 "Support Organisation": "IT Support",
                 "Support Assignees": [
-                    "Allen Allbrook",
-                    "Mary Mann"
+                    "Allen Allbrook"
                 ]
             },
             "Change Management": {
                 "Support Company": "Calbro Services",
                 "Support Organisation": "IT Support",
                 "Support Assignees": [
-                    "Change User"
+                    "Allen Allbrook",
+                    "Bob Baxter",
+                    "Mary Mann",
+                    "Victor VP"
                 ]
             },
             "Frontoffice Support": {
@@ -39,7 +41,7 @@
             "Bob"
         ],
         "CIs": [
-            "Test"
+            "iPhone 6s"
         ],
         "Services": [
             "Application Hosting",
