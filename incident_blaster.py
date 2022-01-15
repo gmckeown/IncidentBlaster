@@ -11,7 +11,6 @@ import json
 import logging
 import random
 import sys
-
 # import time
 import traceback
 from pathlib import Path
@@ -43,7 +42,7 @@ def get_config_filenames() -> Dict[str, Path]:
     }
 
 
-def load_config():
+def load_config() -> None:
     """Load configuration from external JSON files"""
     # TODO: Improve configuration loading/handling
     global rest_config, remedy_config, customer_config, runtime_values
@@ -65,10 +64,8 @@ def load_config():
     with open(configs["rv"]) as rvf:
         runtime_values = json.load(rvf)
 
-    return rest_config, remedy_config, customer_config, runtime_values
 
-
-def save_config():
+def save_config() -> None:
     """Save runtime Values to file"""
     configs = get_config_filenames()
 
@@ -76,7 +73,7 @@ def save_config():
         json.dump(runtime_values, rvw, indent=4)
 
 
-def create_incident(session, incident_request: dict):
+def create_incident(session: RemedySession, incident_request: dict) -> None:
     """Create Remedy incident and modify status if required"""
     return_fields = ["Incident Number", "Request ID"]
     incident_data = incident_request.get("values", {})
@@ -84,7 +81,8 @@ def create_incident(session, incident_request: dict):
     # logging.info(json.dumps(incident_request, indent=4))
     # Create the base incident
     _, return_data = session.create_entry(
-        rest_config.get("remedyCreateForm"), incident_request, return_fields
+        rest_config.get("remedyCreateForm",
+                        "HPD:IncidentInterface_Create"), incident_request, return_fields
     )
 
     values = return_data.get("values", {})
@@ -96,19 +94,20 @@ def create_incident(session, incident_request: dict):
     if not incident_number:
         raise RemedyException("Failed to create incident")
 
-    status = incident_data.get("Status")
+    status = incident_data.get("Status", "")
     if status in ["In Progress", "Pending"]:
         update_incident_status(incident_number, session, status, incident_data)
 
 
-def update_incident_status(incident_number, session, status, incident_data):
+def update_incident_status(incident_number: str, session: RemedySession,
+                           status: str, incident_data: dict) -> None:
     """Update the status of the incident, also setting the stats reason
     if the status is set to Pending"""
 
     # Find the entry ID of the incident in the Incident Modify form
     remedy_query = f"""('Incident Number'="{incident_number}")"""
     response_records = session.get_entry(
-        rest_config.get("remedyModifyForm"), remedy_query, ["Request ID"]
+        rest_config.get("remedyModifyForm", "HPD:IncidentInterface"), remedy_query, ["Request ID"]
     )
 
     entries = response_records.get("entries")
@@ -126,7 +125,8 @@ def update_incident_status(incident_number, session, status, incident_data):
         values["Status_Reason"] = incident_data.get("Status_Reason", "")
 
     update_body = {"values": values}
-    session.modify_entry(rest_config.get("remedyModifyForm"), update_body, request_id)
+    session.modify_entry(rest_config.get("remedyModifyForm",
+                         "HPD:IncidentInterface"), update_body, request_id)
     logging.info(f"   +-- Incident {incident_number} modified to status {status}")
 
 
