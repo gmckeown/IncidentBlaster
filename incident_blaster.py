@@ -11,7 +11,7 @@ import json
 import logging
 import random
 import sys
-# import time
+import time
 import traceback
 from pathlib import Path
 from typing import Dict
@@ -81,8 +81,9 @@ def create_incident(session: RemedySession, incident_request: dict) -> None:
     # logging.info(json.dumps(incident_request, indent=4))
     # Create the base incident
     _, return_data = session.create_entry(
-        rest_config.get("remedyCreateForm",
-                        "HPD:IncidentInterface_Create"), incident_request, return_fields
+        rest_config.get("remedyCreateForm", "HPD:IncidentInterface_Create"),
+        incident_request,
+        return_fields,
     )
 
     values = return_data.get("values", {})
@@ -99,15 +100,18 @@ def create_incident(session: RemedySession, incident_request: dict) -> None:
         update_incident_status(incident_number, session, status, incident_data)
 
 
-def update_incident_status(incident_number: str, session: RemedySession,
-                           status: str, incident_data: dict) -> None:
+def update_incident_status(
+    incident_number: str, session: RemedySession, status: str, incident_data: dict
+) -> None:
     """Update the status of the incident, also setting the stats reason
     if the status is set to Pending"""
 
     # Find the entry ID of the incident in the Incident Modify form
     remedy_query = f"""('Incident Number'="{incident_number}")"""
     response_records = session.get_entry(
-        rest_config.get("remedyModifyForm", "HPD:IncidentInterface"), remedy_query, ["Request ID"]
+        rest_config.get("remedyModifyForm", "HPD:IncidentInterface"),
+        remedy_query,
+        ["Request ID"],
     )
 
     entries = response_records.get("entries")
@@ -125,8 +129,11 @@ def update_incident_status(incident_number: str, session: RemedySession,
         values["Status_Reason"] = incident_data.get("Status_Reason", "")
 
     update_body = {"values": values}
-    session.modify_entry(rest_config.get("remedyModifyForm",
-                         "HPD:IncidentInterface"), update_body, request_id)
+    session.modify_entry(
+        rest_config.get("remedyModifyForm", "HPD:IncidentInterface"),
+        update_body,
+        request_id,
+    )
     logging.info(f"   +-- Incident {incident_number} modified to status {status}")
 
 
@@ -148,6 +155,9 @@ def main():
         )
         sys.exit("Failed to read password from config")
 
+    script_start_time = time.perf_counter()
+    incidents_created = 0
+
     with RemedySession(remedy_url, remedy_user, remedy_password) as session:
         error_count = 0
         for _ in range(runtime_values.get("incidentsToCreate", 0)):
@@ -164,6 +174,7 @@ def main():
                 logging.debug(json.dumps(incident_request, indent=4))
                 create_incident(session, incident_request)
                 runtime_values["nextIncidentNumber"] += 1
+                incidents_created += 1
             except RemedyException as err:
                 logging.error(f"Error: {err}")
                 logging.error(traceback.format_exc())
@@ -172,6 +183,13 @@ def main():
                 logging.error(f"Error: {err}")
                 logging.error(traceback.format_exc())
                 error_count += 1
+
+    script_end_time = time.perf_counter()
+    script_runtime = script_end_time - script_start_time
+    logging.info("=================================")
+    logging.info(
+        f"Created a total of {incidents_created} incidents in {script_runtime:.2f} seconds."
+    )
 
     if error_count:
         logging.info(
