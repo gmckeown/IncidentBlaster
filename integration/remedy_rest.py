@@ -36,8 +36,8 @@ class RemedySession:
             password: Password for the Remedy user
         """
         self.remedy_base_url = api_url
-        logging.info(f"Logging in to Remedy as {username}")
-        logging.info(f"========================{'=' * len(username)}")
+        logging.info(f"Logging in to Helix ITSM as {username}")
+        logging.info(f"============================{'=' * len(username)}")
 
         payload = {"username": username, "password": password}
         login_url = f"{self.remedy_base_url}{LOGIN_PATH}"
@@ -72,13 +72,13 @@ class RemedySession:
             f"{self.remedy_base_url}{LOGOUT_PATH}", headers=headers
         )
 
-        logging.info("=============================")
+        logging.info("=================================")
 
         if not response.ok:
             raise RemedyLogoutException(
-                f'Failed to log out of Remedy server: ({response.status_code}) {response.text}"'
+                f'Failed to log out of Helix ITSM server: ({response.status_code}) {response.text}"'
             )
-        logging.info("Successful logout from Remedy")
+        logging.info("Successful logout from Helix ITSM")
         self.auth_token = None
 
     def create_entry(
