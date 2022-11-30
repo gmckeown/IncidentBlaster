@@ -16,7 +16,7 @@ import traceback
 from pathlib import Path
 from typing import Dict
 
-from integration.remedy_rest import RemedyException, RemedySession
+from bmc.remedy import RemedyException, RemedySession
 
 DEBUG_FLAG = False
 
@@ -49,19 +49,19 @@ def load_config() -> None:
     configs = get_config_filenames()
 
     # Load Configuration (Connectivity)
-    with open(configs["rc"]) as rcf:
+    with open(configs["rc"], "r", encoding="UTF-8") as rcf:
         rest_config = json.load(rcf)
 
     # Load Configuration (Standard Remedy Elements)
-    with open(configs["sc"]) as scf:
+    with open(configs["sc"], "r", encoding="UTF-8") as scf:
         remedy_config = json.load(scf)
 
     # Load Configuration (Customer Specific Elements)
-    with open(configs["cc"]) as ccf:
+    with open(configs["cc"], "r", encoding="UTF-8") as ccf:
         customer_config = json.load(ccf)
 
     # Load Configuration (Runtime Values)
-    with open(configs["rv"]) as rvf:
+    with open(configs["rv"], "r", encoding="UTF-8") as rvf:
         runtime_values = json.load(rvf)
 
 
@@ -69,7 +69,7 @@ def save_config() -> None:
     """Save runtime Values to file"""
     configs = get_config_filenames()
 
-    with open(configs["rv"], "w") as rvw:
+    with open(configs["rv"], "w", encoding="UTF-8") as rvw:
         json.dump(runtime_values, rvw, indent=4)
 
 
@@ -108,10 +108,11 @@ def update_incident_status(
 
     # Find the entry ID of the incident in the Incident Modify form
     remedy_query = f"""('Incident Number'="{incident_number}")"""
-    response_records = session.get_entry(
-        rest_config.get("remedyModifyForm", "HPD:IncidentInterface"),
-        remedy_query,
-        ["Request ID"],
+    response_records = session.query_form(
+        form=rest_config.get("remedyModifyForm", "HPD:IncidentInterface"),
+        query=remedy_query,
+        fields=["Request ID"],
+        limit=None,
     )
 
     entries = response_records.get("entries")
@@ -213,10 +214,8 @@ def generate_random_incident(incident_counter: int) -> Dict[str, Dict[str, str]]
         incident_request: Dictionary containing the generated incident structure
     """
 
-    description = (
-        f"Test incident {incident_counter} created with Incident Blaster: "
-        f"{datetime.datetime.today()}"
-    )
+    description = f"Test incident {incident_counter} created with Incident Blaster: {datetime.datetime.now()}"
+
     notes = f"These are the notes for test incident {incident_counter}."
 
     # Standard Remedy Elements
